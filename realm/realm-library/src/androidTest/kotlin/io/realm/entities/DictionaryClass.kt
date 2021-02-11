@@ -20,6 +20,7 @@ import io.realm.Mixed
 import io.realm.RealmDictionary
 import io.realm.RealmObject
 import io.realm.annotations.PrimaryKey
+import io.realm.annotations.Required
 import org.bson.types.Decimal128
 import org.bson.types.ObjectId
 import java.util.*
@@ -44,6 +45,39 @@ open class DictionaryClass : RealmObject() {
     var myDecimal128Dictionary: RealmDictionary<Decimal128>? = null
 
     var emptyBooleanDictionary: RealmDictionary<Boolean>? = null
+
+//    @Required
+//    var requiredRealmModelDictionary: RealmDictionary<MyRealmModel>? = null
+//    @Required
+//    var requiredPrimaryKeyModelDictionary: RealmDictionary<MyPrimaryKeyModel>? = null
+//    @Required
+//    var requiredMixedDictionary: RealmDictionary<Mixed>? = null
+    @Required
+    var requiredBooleanDictionary: RealmDictionary<Boolean>? = null
+    @Required
+    var requiredStringDictionary: RealmDictionary<String>? = null
+    @Required
+    var requiredIntegerDictionary: RealmDictionary<Int>? = null
+    @Required
+    var requiredFloatDictionary: RealmDictionary<Float>? = null
+    @Required
+    var requiredLongDictionary: RealmDictionary<Long>? = null
+    @Required
+    var requiredShortDictionary: RealmDictionary<Short>? = null
+    @Required
+    var requiredDoubleDictionary: RealmDictionary<Double>? = null
+    @Required
+    var requiredByteDictionary: RealmDictionary<Byte>? = null
+    @Required
+    var requiredByteArrayDictionary: RealmDictionary<ByteArray>? = null
+    @Required
+    var requiredDateDictionary: RealmDictionary<Date>? = null
+    @Required
+    var requiredObjectIdDictionary: RealmDictionary<ObjectId>? = null
+    @Required
+    var requiredUUIDDictionary: RealmDictionary<UUID>? = null
+    @Required
+    var requiredDecimal128Dictionary: RealmDictionary<Decimal128>? = null
 
     companion object {
         const val CLASS_NAME = "DictionaryClass"

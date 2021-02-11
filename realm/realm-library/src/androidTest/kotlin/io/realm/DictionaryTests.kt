@@ -31,6 +31,7 @@ import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.lang.IllegalStateException
 import java.util.*
 import kotlin.collections.HashMap
 import kotlin.test.*
@@ -442,6 +443,70 @@ class DictionaryTests {
                 val actual = myByteArrayDictionary!![KEY_HELLO]
                 assertEquals(Byte.MIN_VALUE, actual!![0])
                 assertEquals(Byte.MAX_VALUE, actual[1])
+            }
+        }
+    }
+
+    @Test
+    fun managed_put_required() {
+        realm.executeTransaction { transactionRealm ->
+            val dictionaryObject = DictionaryClass().apply {
+                requiredBooleanDictionary = RealmDictionary()
+                requiredStringDictionary = RealmDictionary()
+                requiredIntegerDictionary = RealmDictionary()
+                requiredFloatDictionary = RealmDictionary()
+                requiredLongDictionary = RealmDictionary()
+                requiredShortDictionary = RealmDictionary()
+                requiredDoubleDictionary = RealmDictionary()
+                requiredByteDictionary = RealmDictionary()
+                requiredByteArrayDictionary = RealmDictionary()
+                requiredDateDictionary = RealmDictionary()
+                requiredObjectIdDictionary = RealmDictionary()
+                requiredUUIDDictionary = RealmDictionary()
+                requiredDecimal128Dictionary = RealmDictionary()
+            }
+            val dictionaryObjectFromRealm = transactionRealm.copyToRealm(dictionaryObject)
+
+            with(dictionaryObjectFromRealm) {
+                assertFailsWith<IllegalStateException> {
+                    requiredBooleanDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredStringDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredIntegerDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredFloatDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredLongDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredShortDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredDoubleDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredByteDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredByteArrayDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredDateDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredObjectIdDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredUUIDDictionary!![KEY_HELLO] = null
+                }
+                assertFailsWith<IllegalStateException> {
+                    requiredDecimal128Dictionary!![KEY_HELLO] = null
+                }
             }
         }
     }
@@ -936,6 +1001,158 @@ class DictionaryTests {
             assertEquals(VALUE_HELLO, dictionaryFromRealm[KEY_HELLO])
             assertEquals(VALUE_BYE, dictionaryFromRealm[KEY_BYE])
             assertNull(dictionaryFromRealm[KEY_NULL])
+        }
+    }
+
+    @Test
+    fun copyToRealm_required() {
+        realm.executeTransaction { transactionRealm ->
+            // Boolean
+            DictionaryClass().apply {
+                requiredBooleanDictionary = RealmDictionary<Boolean>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // String
+            DictionaryClass().apply {
+                requiredStringDictionary = RealmDictionary<String>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                // String unboxing does support null values, so the check is done below in core and the exception is IllegalStateException instead
+                assertFailsWith<IllegalStateException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Integer
+            DictionaryClass().apply {
+                requiredIntegerDictionary = RealmDictionary<Int>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Float
+            DictionaryClass().apply {
+                requiredFloatDictionary = RealmDictionary<Float>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Long
+            DictionaryClass().apply {
+                requiredLongDictionary = RealmDictionary<Long>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Short
+            DictionaryClass().apply {
+                requiredShortDictionary = RealmDictionary<Short>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Double
+            DictionaryClass().apply {
+                requiredDoubleDictionary = RealmDictionary<Double>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Byte
+            DictionaryClass().apply {
+                requiredByteDictionary = RealmDictionary<Byte>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // ByteArray
+            DictionaryClass().apply {
+                requiredByteArrayDictionary = RealmDictionary<ByteArray>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                // byte[] unboxing does support null values, so the check is done below in core and the exception is IllegalStateException instead
+                assertFailsWith<IllegalStateException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Date
+            DictionaryClass().apply {
+                requiredDateDictionary = RealmDictionary<Date>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                // Date unboxing does support null values, so the check is done below in core and the exception is IllegalStateException instead
+                assertFailsWith<IllegalStateException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // ObjectId
+            DictionaryClass().apply {
+                requiredObjectIdDictionary = RealmDictionary<ObjectId>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // UUID
+            DictionaryClass().apply {
+                requiredUUIDDictionary = RealmDictionary<UUID>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                assertFailsWith<IllegalArgumentException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
+
+            // Decimal128
+            DictionaryClass().apply {
+                requiredDecimal128Dictionary = RealmDictionary<Decimal128>().apply {
+                    put(KEY_NULL, null)
+                }
+            }.also {
+                // Decimal128 unboxing does support null values, so the check is done below in core and the exception is IllegalStateException instead
+                assertFailsWith<IllegalStateException> {
+                    transactionRealm.copyToRealm(it)
+                }
+            }
         }
     }
 
