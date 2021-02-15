@@ -28,7 +28,6 @@ import org.bson.types.Decimal128
 import org.bson.types.ObjectId
 import org.junit.After
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.lang.IllegalStateException
@@ -60,6 +59,23 @@ private val VALUE_HELLO_BYTE_ARRAY = ByteArray(2).apply {
     set(1, Byte.MAX_VALUE)
 }
 private val VALUE_NULL = null
+private val mixedEntries = mapOf(
+        "INTEGER" to Mixed.valueOf(42 as Int),
+        "BOOLEAN" to Mixed.valueOf(true),
+        "STRING" to Mixed.valueOf("this is a string"),
+        "BINARY" to Mixed.valueOf(ByteArray(1).apply { set(0, 42) }),
+        "DATE" to Mixed.valueOf(Date()),
+        "FLOAT" to Mixed.valueOf(42F),
+        "DOUBLE" to Mixed.valueOf(42.toDouble()),
+        "SHORT" to Mixed.valueOf(42.toShort()),
+        "BYTE" to Mixed.valueOf(42.toByte()),
+        "DECIMAL128" to Mixed.valueOf(Decimal128(42)),
+        "OBJECT_ID" to Mixed.valueOf(ObjectId()),
+        "UUID" to Mixed.valueOf(UUID.randomUUID()),
+        "NULL" to Mixed.nullValue(),
+        "UNMANAGED_REALM_MODEL" to Mixed.valueOf(MyRealmModel().apply { id = "unmanaged" }),
+        "NULL_VALUE" to null
+)
 
 @RunWith(AndroidJUnit4::class)
 class DictionaryTests {
@@ -298,7 +314,7 @@ class DictionaryTests {
     fun managed_containsKey() {
         val key = "SOME_KEY"
 
-        realm.executeTransaction {
+        realm.executeTransaction { transactionRealm ->
             val dictionaryObject = DictionaryClass().apply {
                 myBooleanDictionary = RealmDictionary<Boolean>().apply {
                     put(KEY_HELLO, VALUE_HELLO)
@@ -307,11 +323,12 @@ class DictionaryTests {
                 }
             }
 
-            assertNotNull(dictionaryObject)
-            dictionaryObject.myBooleanDictionary.let { dictionary ->
+            val objectFromRealm = transactionRealm.copyToRealm(dictionaryObject)
+            assertNotNull(objectFromRealm)
+            objectFromRealm.myBooleanDictionary.let { dictionary ->
                 assertNotNull(dictionary)
-                dictionary.containsKey(KEY_HELLO)
-                dictionary.containsKey(KEY_BYE)
+                assertTrue(dictionary.containsKey(KEY_HELLO))
+                assertTrue(dictionary.containsKey(KEY_BYE))
                 dictionary[key] = true
                 assertTrue(dictionary.containsKey(key))
                 assertFalse(dictionary.containsKey("ANOTHER_KEY"))
@@ -324,23 +341,88 @@ class DictionaryTests {
         val key = "SOME_KEY"
         val value = "SOME_VALUE"
 
-        realm.executeTransaction {
+        realm.executeTransaction { transactionRealm ->
             val dictionaryObject = DictionaryClass().apply {
                 myStringDictionary = RealmDictionary<String>().apply {
                     put(KEY_HELLO, VALUE_HELLO_STRING)
                     put(KEY_BYE, VALUE_BYE_STRING)
-                    put(KEY_NULL, null)
+                    put(KEY_NULL, VALUE_NULL)
+                }
+                myMixedDictionary = RealmDictionary<Mixed>().apply {
+                    putAll(mixedEntries)
+                }
+                myRealmModelDictionary = RealmDictionary<MyRealmModel>().apply {
+                    put(key, MyRealmModel().apply { id = value })
+                    put(KEY_NULL, VALUE_NULL)
                 }
             }
 
-            assertNotNull(dictionaryObject)
-            dictionaryObject.myStringDictionary.let { dictionary ->
+            // TODO: parameterize to test all types
+
+            val objectFromRealm = transactionRealm.copyToRealm(dictionaryObject)
+            assertNotNull(objectFromRealm)
+
+            // Test primitive values
+            objectFromRealm.myStringDictionary.let { dictionary ->
                 assertNotNull(dictionary)
-                dictionary.containsValue(VALUE_HELLO_STRING)
-                dictionary.containsValue(VALUE_BYE_STRING)
+                assertTrue(dictionary.containsValue(VALUE_HELLO_STRING))
+                assertTrue(dictionary.containsValue(VALUE_BYE_STRING))
                 dictionary[key] = value
                 assertTrue(dictionary.containsValue(value))
                 assertFalse(dictionary.containsValue("ANOTHER_VALUE"))
+            }
+
+            // Test Mixed
+            objectFromRealm.myMixedDictionary.let { dictionary ->
+                assertNotNull(dictionary)
+
+                // Iterate over all Mixed types
+                for (entry: Map.Entry<String, Mixed?> in mixedEntries) {
+                    val mixedValue = entry.value
+                    if (null != mixedValue) {
+                        if (mixedValue.type != MixedType.OBJECT) {
+                            assertTrue(dictionary.containsValue(mixedValue))
+                        } else {
+                            // Cannot check if an unmanaged Mixed is in the map, it has to be managed
+                            assertFailsWith<ClassCastException> {
+                                assertTrue(dictionary.containsValue(mixedValue))
+                            }
+
+                            // Get managed model first and then check
+                            val managedModel = transactionRealm.where<MyRealmModel>()
+                                    .equalTo(MyRealmModel.ID_FIELD_NAME, "unmanaged")
+                                    .findFirst()
+                            assertNotNull(managedModel)
+                            assertTrue(dictionary.containsValue(Mixed.valueOf(managedModel)))
+                        }
+                    }
+                }
+                dictionary[key] = Mixed.valueOf(value)
+                assertTrue(dictionary.containsValue(Mixed.valueOf(value)))
+                assertFalse(dictionary.containsValue(Mixed.valueOf("ANOTHER_VALUE")))
+            }
+
+            // Test RealmModel
+            objectFromRealm.myRealmModelDictionary.let { dictionary ->
+                assertNotNull(dictionary)
+                assertFailsWith<IllegalArgumentException> {
+                    dictionary.containsValue(MyRealmModel().apply { id = "whatever" })
+                }
+
+                // Model exists
+                val managedModel = transactionRealm.where<MyRealmModel>()
+                        .equalTo(MyRealmModel.ID_FIELD_NAME, value)
+                        .findFirst()
+                assertNotNull(managedModel)
+                assertTrue(dictionary.containsValue(managedModel))
+
+                // Model doesn't exist
+                transactionRealm.copyToRealm(MyRealmModel().apply { id = "MODEL_NOT_PRESENT" })
+                val managedModelNotPresentInDictionary = transactionRealm.where<MyRealmModel>()
+                        .equalTo(MyRealmModel.ID_FIELD_NAME, "MODEL_NOT_PRESENT")
+                        .findFirst()
+                assertNotNull(managedModelNotPresentInDictionary)
+                assertFalse(dictionary.containsValue(managedModelNotPresentInDictionary))
             }
         }
     }
@@ -701,13 +783,74 @@ class DictionaryTests {
             // Test size
             assertEquals(3, entrySet.size)
 
+            // Test isEmpty
+            assertFalse(entrySet.isEmpty())
+
             // Test contains
             assertTrue(entrySet.contains(AbstractMap.SimpleImmutableEntry(KEY_HELLO, VALUE_HELLO_STRING)))
             assertTrue(entrySet.contains(AbstractMap.SimpleImmutableEntry(KEY_BYE, VALUE_BYE_STRING)))
             assertTrue(entrySet.contains(AbstractMap.SimpleImmutableEntry(KEY_NULL, VALUE_NULL)))
             assertFalse(entrySet.contains(AbstractMap.SimpleImmutableEntry("SOME_KEY", "SOME_VALUE")))
 
-            // Test contains all
+            // Test iterator
+            val iterator: Iterator<Map.Entry<String, String?>> = entrySet.iterator()
+            assertNotNull(iterator)
+            var iteratorSize = 0
+            while (iterator.hasNext()) {
+                iteratorSize++
+                iterator.next()
+            }
+            assertEquals(entrySet.size, iteratorSize)
+
+            // Test toArray
+            assertTrue(entrySet is RealmMapEntrySet<*, *>)
+            val entrySetObjectArray: Array<Any> = entrySet.toArray()
+            for (entry in entrySetObjectArray) {
+                assertTrue(entry is Map.Entry<*, *>)
+                assertTrue(entry.key is String)
+                assertTrue(entry.value is String?)
+                assertTrue(entrySet.contains(entry))
+            }
+
+            // Test toArray: smaller size, return a new instance
+            val testArraySmaller = arrayOfNulls<Map.Entry<String, String?>>(1)
+            val entrySetSmallerArray: Array<Any> = entrySet.toArray(testArraySmaller)
+            assertNotEquals(testArraySmaller.size, entrySetSmallerArray.size)
+            assertEquals(entrySet.size, entrySetSmallerArray.size)
+            for (entry in entrySetSmallerArray) {
+                assertTrue(entry is Map.Entry<*, *>)
+                assertTrue(entry.key is String)
+                assertTrue(entry.value is String?)
+                assertTrue(entrySet.contains(entry))
+            }
+
+            // Test toArray: same size, return a new instance
+            val testArraySame = arrayOfNulls<Map.Entry<String, String?>>(1)
+            val entrySetSameSizeArray: Array<Any> = entrySet.toArray(testArraySame)
+            assertEquals(entrySet.size, entrySetSameSizeArray.size)
+            for (entry in entrySetSameSizeArray) {
+                assertTrue(entry is Map.Entry<*, *>)
+                assertTrue(entry.key is String)
+                assertTrue(entry.value is String?)
+                assertTrue(entrySet.contains(entry))
+            }
+
+            // Test toArray: bigger size, add null as the last entry
+            val testArrayBigger = arrayOfNulls<Map.Entry<String, String?>>(10)
+            val entrySetBiggerArray: Array<Any> = entrySet.toArray(testArrayBigger)
+            assertTrue(entrySetBiggerArray.size > entrySet.size)
+            for ((index, entry) in entrySetBiggerArray.withIndex()) {
+                if (index >= entrySet.size) {
+                    assertNull(entry)
+                } else {
+                    assertTrue(entry is Map.Entry<*, *>)
+                    assertTrue(entry.key is String)
+                    assertTrue(entry.value is String?)
+                    assertTrue(entrySet.contains(entry))
+                }
+            }
+
+            // Test containsAll
             val sameCollection = setOf<Map.Entry<String, String?>>(
                     AbstractMap.SimpleImmutableEntry(KEY_HELLO, VALUE_HELLO_STRING),
                     AbstractMap.SimpleImmutableEntry(KEY_BYE, VALUE_BYE_STRING),
@@ -974,29 +1117,11 @@ class DictionaryTests {
 
     @Test
     fun copyToRealm_mixed() {
-        val entries = mapOf(
-                "INTEGER" to Mixed.valueOf(42 as Int),
-                "BOOLEAN" to Mixed.valueOf(true),
-                "STRING" to Mixed.valueOf("this is a string"),
-                "BINARY" to Mixed.valueOf(ByteArray(1).apply { set(0, 42) }),
-                "DATE" to Mixed.valueOf(Date()),
-                "FLOAT" to Mixed.valueOf(42F),
-                "DOUBLE" to Mixed.valueOf(42.toDouble()),
-                "SHORT" to Mixed.valueOf(42.toShort()),
-                "BYTE" to Mixed.valueOf(42.toByte()),
-                "DECIMAL128" to Mixed.valueOf(Decimal128(42)),
-                "OBJECT_ID" to Mixed.valueOf(ObjectId()),
-                "UUID" to Mixed.valueOf(UUID.randomUUID()),
-                "NULL" to Mixed.nullValue(),
-                "UNMANAGED_REALM_MODEL" to Mixed.valueOf(MyRealmModel().apply { id = "unmanaged" }),
-                "NULL_VALUE" to null
-        )
-
         // Create dictionary with all possible mixed types: the ones defined above plus plain null, managed and unmanaged models
         realm.executeTransaction { transactionRealm ->
             val dictionaryObject = DictionaryClass().apply {
                 myMixedDictionary = RealmDictionary<Mixed>().apply {
-                    putAll(entries)
+                    putAll(mixedEntries)
                 }
                 val managedModel = transactionRealm.createObject<MyRealmModel>().apply { id = "managed" }
                 myMixedDictionary!!["MANAGED_REALM_MODEL"] = Mixed.valueOf(managedModel)
@@ -1012,7 +1137,7 @@ class DictionaryTests {
         assertNotNull(dictionaryFromRealm)
 
         // Iterate over all sample entries and compare them to the values we got from realm
-        entries.entries.forEach { entry ->
+        mixedEntries.entries.forEach { entry ->
             dictionaryFromRealm[entry.key].also { value ->
                 assertNotNull(value)
                 when {
@@ -1507,28 +1632,10 @@ class DictionaryTests {
 
     @Test
     fun copyFromRealm_mixed() {
-        val entries = mapOf(
-                "INTEGER" to Mixed.valueOf(42 as Int),
-                "BOOLEAN" to Mixed.valueOf(true),
-                "STRING" to Mixed.valueOf("this is a string"),
-                "BINARY" to Mixed.valueOf(ByteArray(1).apply { set(0, 42) }),
-                "DATE" to Mixed.valueOf(Date()),
-                "FLOAT" to Mixed.valueOf(42F),
-                "DOUBLE" to Mixed.valueOf(42.toDouble()),
-                "SHORT" to Mixed.valueOf(42.toShort()),
-                "BYTE" to Mixed.valueOf(42.toByte()),
-                "DECIMAL128" to Mixed.valueOf(Decimal128(42)),
-                "OBJECT_ID" to Mixed.valueOf(ObjectId()),
-                "UUID" to Mixed.valueOf(UUID.randomUUID()),
-                "NULL" to Mixed.nullValue(),
-                "UNMANAGED_REALM_MODEL" to Mixed.valueOf(MyRealmModel().apply { id = "unmanaged" }),
-                "NULL_VALUE" to null
-        )
-
         realm.executeTransaction { transactionRealm ->
             val dictionaryObject = DictionaryClass().apply {
                 myMixedDictionary = RealmDictionary<Mixed>().apply {
-                    putAll(entries)
+                    putAll(mixedEntries)
                 }
                 val managedModel = transactionRealm.createObject<MyRealmModel>().apply { id = "managed" }
                 myMixedDictionary!!["MANAGED_REALM_MODEL"] = Mixed.valueOf(managedModel)
@@ -1544,7 +1651,7 @@ class DictionaryTests {
         assertNotNull(dictionaryFromRealm)
 
         // Iterate over all sample entries and compare them to the values we got from realm
-        entries.entries.forEach { entry ->
+        mixedEntries.entries.forEach { entry ->
             dictionaryFromRealm[entry.key].also { value ->
                 assertNotNull(value)
                 when {
