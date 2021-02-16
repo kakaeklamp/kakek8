@@ -46,12 +46,6 @@ open class DictionaryClass : RealmObject() {
 
     var emptyBooleanDictionary: RealmDictionary<Boolean>? = null
 
-//    @Required
-//    var requiredRealmModelDictionary: RealmDictionary<MyRealmModel>? = null
-//    @Required
-//    var requiredPrimaryKeyModelDictionary: RealmDictionary<MyPrimaryKeyModel>? = null
-//    @Required
-//    var requiredMixedDictionary: RealmDictionary<Mixed>? = null
     @Required
     var requiredBooleanDictionary: RealmDictionary<Boolean>? = null
     @Required
