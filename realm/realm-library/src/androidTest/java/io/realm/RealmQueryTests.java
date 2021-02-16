@@ -2959,9 +2959,8 @@ public class RealmQueryTests extends QueryTests {
                     case STRING_TO_UUID_MAP:
                     case STRING_TO_DECIMAL128_MAP:
                     case STRING_TO_LINK_MAP:
-                        // TODO: fix this when adding maps to AllJavaTypes
-                        realm.where(AllJavaTypes.class).isEmpty(AllJavaTypes.FIELD_UUID_LIST).findAll();
-                        break;
+                        // TODO: fix this when adding support for dictionary queries
+                        throw new IllegalArgumentException();
                     default:
                         fail("Unknown type: " + type);
                 }
@@ -3132,9 +3131,8 @@ public class RealmQueryTests extends QueryTests {
                     case STRING_TO_UUID_MAP:
                     case STRING_TO_DECIMAL128_MAP:
                     case STRING_TO_LINK_MAP:
-                        // TODO: fix this when adding maps to AllJavaTypes
-                        realm.where(AllJavaTypes.class).isNotEmpty(AllJavaTypes.FIELD_UUID_LIST).findAll();
-                        break;
+                        // TODO: fix this when adding support for dictionary queries
+                        throw new IllegalArgumentException();
                     default:
                         fail("Unknown type: " + type);
                 }
@@ -3352,8 +3350,6 @@ public class RealmQueryTests extends QueryTests {
         HashSet types = new HashSet(Arrays.asList(RealmFieldType.values()));
         types.remove(RealmFieldType.TYPED_LINK);
         types.remove(RealmFieldType.MIXED_LIST);
-
-        // TODO: maps not ready to test yet
         types.remove(RealmFieldType.STRING_TO_MIXED_MAP);
         types.remove(RealmFieldType.STRING_TO_BOOLEAN_MAP);
         types.remove(RealmFieldType.STRING_TO_STRING_MAP);
