@@ -127,7 +127,8 @@ public class RealmObjectSchemaTests {
         OBJECT_ID(ObjectId.class, true),
         DECIMAL128(Decimal128.class, true),
         UUID(UUID.class, true),
-        OBJECT(RealmObject.class, false);
+        OBJECT(RealmObject.class, false),
+        MIXED(Mixed.class, true);
 
         final Class<?> clazz;
         final boolean defaultNullable;
@@ -161,6 +162,7 @@ public class RealmObjectSchemaTests {
         OBJECT_ID_LIST(ObjectId.class, true),
         DECIMAL128_LIST(Decimal128.class, true),
         UUID_LIST(UUID.class, true),
+        MIXED_LIST(Mixed.class, true),
         LIST(RealmList.class, false); // List of Realm Objects
 
         final Class<?> clazz;
@@ -224,6 +226,7 @@ public class RealmObjectSchemaTests {
         BOOLEAN(Boolean.class, true), PRIMITIVE_BOOLEAN(boolean.class, false),
         OBJECT_ID(ObjectId.class, true),
         UUID(UUID.class, true),
+        MIXED(Mixed.class, true),
         DATE(Date.class, true);
 
         private final Class<?> clazz;
@@ -295,6 +298,7 @@ public class RealmObjectSchemaTests {
         BLOB(byte[].class),
         DATE(Date.class),
         DECIMAL128(Decimal128.class),
+        MIXED(Mixed.class),
         OBJECT(RealmObject.class),
         LIST(RealmList.class);
 
@@ -477,7 +481,9 @@ public class RealmObjectSchemaTests {
         String fieldName = "foo";
         for (FieldType fieldType : FieldType.values()) {
             switch (fieldType) {
-                case OBJECT: continue; // Not possible.
+                case OBJECT:
+                case MIXED:
+                    continue; // Not possible.
                 default:
                     // All simple types
                     schema.addField(fieldName, fieldType.getType(), FieldAttribute.REQUIRED);
@@ -488,6 +494,7 @@ public class RealmObjectSchemaTests {
         for (FieldListType fieldType : FieldListType.values()) {
             switch(fieldType) {
                 case LIST:
+                case MIXED_LIST:
                     continue; // Not possible.
                 default:
                     // All simple list types
@@ -706,6 +713,7 @@ public class RealmObjectSchemaTests {
         for (FieldType fieldType : FieldType.values()) {
             switch (fieldType) {
                 case OBJECT:
+                case MIXED:
                     // Objects are always nullable and cannot be changed.
                     schema.addRealmObjectField(fieldName, schema);
                     assertTrue(schema.isNullable(fieldName));
@@ -727,6 +735,7 @@ public class RealmObjectSchemaTests {
         for (FieldListType fieldType : FieldListType.values()) {
             switch (fieldType) {
                 case LIST:
+                case MIXED_LIST:
                     // Lists are not nullable and cannot be configured to be so.
                     schema.addRealmListField(fieldName, schema);
                     assertFalse(schema.isNullable(fieldName));
@@ -758,6 +767,7 @@ public class RealmObjectSchemaTests {
         for (FieldType fieldType : FieldType.values()) {
             switch (fieldType) {
                 case OBJECT:
+                case MIXED:
                     // Objects are always nullable and cannot be configured otherwise.
                     schema.addRealmObjectField(fieldName, schema);
                     assertFalse(schema.isRequired((fieldName)));
@@ -779,6 +789,7 @@ public class RealmObjectSchemaTests {
         for (FieldListType fieldType : FieldListType.values()) {
             switch (fieldType) {
                 case LIST:
+                case MIXED_LIST:
                     // Lists are always non-nullable and cannot be configured otherwise.
                     schema.addRealmListField(fieldName, schema);
                     assertTrue(schema.isRequired((fieldName)));
@@ -810,6 +821,7 @@ public class RealmObjectSchemaTests {
             String fieldName = fieldType.name();
             switch (fieldType) {
                 case OBJECT:
+                case MIXED:
                     // Skip always nullable fields
                     break;
                 default:
@@ -897,6 +909,7 @@ public class RealmObjectSchemaTests {
                 case PRIMITIVE_FLOAT_LIST:
                 case PRIMITIVE_DOUBLE_LIST:
                 case PRIMITIVE_SHORT_LIST:
+                case MIXED_LIST:
                     // Skip not-nullable fields
                     break;
                 default:
@@ -1064,7 +1077,7 @@ public class RealmObjectSchemaTests {
     private void setRequired_onIndexedField(boolean toRequired) {
         String fieldName = "IndexedField";
         for (IndexFieldType fieldType : IndexFieldType.values()) {
-            if (!fieldType.isNullable()) {
+            if (!fieldType.isNullable() || (fieldType == IndexFieldType.MIXED)) {
                 continue;
             }
             if (toRequired) {
@@ -1400,6 +1413,7 @@ public class RealmObjectSchemaTests {
         assertEquals(RealmFieldType.OBJECT_ID, schema.getFieldType(AllJavaTypes.FIELD_OBJECT_ID));
         assertEquals(RealmFieldType.DECIMAL128, schema.getFieldType(AllJavaTypes.FIELD_DECIMAL128));
         assertEquals(RealmFieldType.UUID, schema.getFieldType(AllJavaTypes.FIELD_UUID));
+        assertEquals(RealmFieldType.MIXED, schema.getFieldType(AllJavaTypes.FIELD_MIXED));
     }
 
     @Test(expected = IllegalArgumentException.class)
